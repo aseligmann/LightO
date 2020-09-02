@@ -1,12 +1,19 @@
 // Import required libraries
 #include "WiFi.h"
-#include "ESPAsyncWebServer.h"
-#include "SPIFFS.h"
 #include <ESPmDNS.h>
 #include <WiFiClient.h>
+//// https://github.com/me-no-dev/ESPAsyncWebServer/issues/418#issuecomment-667976368
+#include <WiFiManager.h>
+WiFiManager wifiManager;
+#define WEBSERVER_H
+#include "ESPAsyncWebServer.h"
+////
+#include "SPIFFS.h"
 #include "math.h"
 #include <NeoPixelBus.h>
 //#include "Credentials.h"
+
+
 
 
 // Multi-core definitions //////////////////////////////////////////////////////////////////////////
@@ -406,15 +413,38 @@ void setup() {
 
 
   // Wi-Fi ////////////////////////////////////////////////////////////////////////////////
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
+//  // Connect to Wi-Fi
+//  WiFi.begin(ssid, password);
+//  while (WiFi.status() != WL_CONNECTED) {
+//    delay(1000);
+//    Serial.println("Connecting to WiFi..");
+//  }
+//
+//  // Print IP address of web server on serial interface
+//  Serial.println(WiFi.localIP());
+  
+  // WiFiManager
+  // reset settings - for testing
+  //wifiManager.resetSettings();
 
-  // Print IP address of web server on serial interface
-  Serial.println(WiFi.localIP());
+  // Sets timeout until configuration portal gets turned off
+  // Useful to make it all retry or go to sleep
+  // In seconds
+  wifiManager.setTimeout(180);
+  
+  // Fetches ssid and pass and tries to connect
+  // If it does not connect it starts an access point with the specified name "LightO"
+  // Goes into a blocking loop awaiting configuration
+  if(!wifiManager.autoConnect("LightO")) {
+    Serial.println("Failed to connect and hit timeout");
+    delay(3000);
+    //reset and try again, or maybe put it to deep sleep
+    ESP.restart();
+    delay(5000);
+  } 
+
+  //if you get here you have connected to the WiFi
+  Serial.println("WiFi configured and connected");
 
 
 
