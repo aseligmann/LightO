@@ -9,67 +9,15 @@
 <!-- // Favicon -->
 <link rel="shortcut icon" href="favicon.ico">
 <link rel="icon" sizes="16x16 32x32 64x64" href="favicon.ico">
-<!-- <link rel="icon" type="image/png" sizes="196x196" href="favicon-192.png">
-<link rel="icon" type="image/png" sizes="160x160" href="favicon-160.png">
-<link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
-<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="apple-touch-icon" href="favicon-57.png">
-<link rel="apple-touch-icon" sizes="114x114" href="favicon-114.png">
-<link rel="apple-touch-icon" sizes="72x72" href="favicon-72.png">
-<link rel="apple-touch-icon" sizes="144x144" href="favicon-144.png">
-<link rel="apple-touch-icon" sizes="60x60" href="favicon-60.png">
-<link rel="apple-touch-icon" sizes="120x120" href="favicon-120.png">
-<link rel="apple-touch-icon" sizes="76x76" href="favicon-76.png">
-<link rel="apple-touch-icon" sizes="152x152" href="favicon-152.png">
-<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<meta name="msapplication-TileColor" content="#FFFFFF">
-<meta name="msapplication-TileImage" content="favicon-144.png">
-<meta name="msapplication-config" content="browserconfig.xml"> -->
 
-<title>Lamp</title>
+<title>LightO</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
 <link rel="stylesheet" type="text/css" href="style.css">
 
-<!-- // Verify the current status of LED > -->
-<!-- <script type="text/javascript">
-    document.addEventListener("DOMContentLoaded", function(event) {
-    var button_text = "";
-    button_text = document.getElementById("status").innerHTML;
-    if (button_text == "ON") {
-        document.getElementById("switch").checked = true;
-    }
-    else if (button_text == "OFF") {
-        document.getElementById("switch").checked = false;
-    }
-});
-</script> -->
-
-<!-- // Change the state of LED    -->
-<!-- <script type="text/javascript">
-    function fun1()
-    {
-    var text = document.getElementById("status").innerHTML;
-    var chbox = document.getElementById("switch").innerHTML;
-        if (chbox.checked == true && text == "OFF") {
-            window.location.pathname = '/on';
-            chbox.checked = true;
-        }
-        else
-        {
-            window.location.pathname = '/off';
-            chbox.checked = false;
-        }
-    }
-</script> -->
-
 <!-- // Handle color wheel    -->
 <script>
 // https://iro.js.org/
-
-
 // Combination of wheel and sliders
 var colorPicker = new iro.ColorPicker("#picker", {
   width: 250,
@@ -142,13 +90,21 @@ function colorState(){
 	xhttp.open("GET", "/state", true);
 	xhttp.send()
 }
+
+function switchChange(){
+	// TODO
+}
+
+function switchState(){
+	// TODO
+}
 </script>
 
 
 </head>
 
 <body onload="colorState()">
-    <h1><a href="https://pm1.narvii.com/6971/57895325fc3c26c281c738870748d1eb1267b128r1-547-753v2_uhq.jpg"> Lamp </a>
+    <h1><a href="https://pm1.narvii.com/6971/57895325fc3c26c281c738870748d1eb1267b128r1-547-753v2_uhq.jpg"> LightO </a>
 	<!-- <div id="status" style = "display: none;">%STATE%</div> -->
 	</h1>
 
