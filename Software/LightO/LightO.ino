@@ -1,17 +1,16 @@
 // Import required libraries
 #include "WiFi.h"
-#include <ESPmDNS.h>
+#include <ESPmDNS.h> // For user-friendly web address
 #include <WiFiClient.h>
 //// https://github.com/me-no-dev/ESPAsyncWebServer/issues/418#issuecomment-667976368
-#include <WiFiManager.h>
+#include <WiFiManager.h> // Captive AP to configure new network
 WiFiManager wifiManager;
 #define WEBSERVER_H
-#include "ESPAsyncWebServer.h"
+#include "ESPAsyncWebServer.h" // Web server
 ////
-#include "SPIFFS.h"
+#include "SPIFFS.h" // Data storage
 #include "math.h"
-#include <NeoPixelBus.h>
-//#include "Credentials.h"
+#include <NeoPixelBus.h> // LED control
 
 
 
@@ -45,7 +44,7 @@ RgbwColor black = RgbwColor(0, 0, 0, 0);
 //HslColor hslBlack(black);
 
 // Set status LED GPIO
-const int ledPin = 23;
+const int switchPin = 23;
 
 // Stores LED state
 String ledState;
@@ -66,14 +65,6 @@ long t;
 long t_prev;
 
 
-
-// Wi-Fi Definitions //////////////////////////////////////////////////////////////////////////
-// Replace with your network credentials
-//const char* ssid = CREDENTIALS_WIFI_SSID;
-//const char* password = CREDENTIALS_WIFI_PASS;
-
-
-
 // Server Definitions //////////////////////////////////////////////////////////////////////////
 // Variable to hold HTTP request
 const char* PARAM_INPUT_1 = "h";
@@ -87,7 +78,7 @@ AsyncWebServer server(80);
 String processor(const String& var) {
   Serial.println(var);
   if (var == "STATE") {
-    if (digitalRead(ledPin)) {
+    if (digitalRead(switchPin)) {
       ledState = "ON";
     } else {
       ledState = "OFF";
@@ -238,7 +229,8 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
 //    w = 255;
 //  }
 //}
-//
+
+
 //void HSV_to_RGBW(int hueIn, int satIn, int valIn){
 //  HSV_to_RGB(hueIn, satIn, valIn);
 //  //RGB_to_RGBW(r, g, b);
@@ -252,21 +244,23 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
 //  w = (int) (bright * (1.0 - lum));
 //}
 
+
+// Handle input color
 void handleColor(int hueIn, int satIn, int valIn) {
+  // We interpret hue as color, saturation as luminance and value as brightness.
+  // This is a bit unconventional, but makes for a better user experience
   HSV_to_RGB(hueIn, satIn, valIn);
   //RGB_to_RGBW(r, g, b);
 
   float lum = satIn / 100.0;
   float bright = valIn / 100.0;
-  Serial.println(lum);
-  Serial.println(bright);
-  
   
   r = (int) (bright * lum * r);
   g = (int) (bright * lum * g);
   b = (int) (bright * lum * b);
   w = (int) 255 * (bright * (1.0 - lum));
 }
+
 
 // Set color of all pixels
 void colorAll(RgbwColor color) {
@@ -275,6 +269,7 @@ void colorAll(RgbwColor color) {
   }
   strip.Show();
 }
+
 
 // Fade from one color to another
 void fade(RgbwColor colorStart, RgbwColor colorEnd, float progressInc, int waitMillis) {
@@ -289,6 +284,7 @@ void fade(RgbwColor colorStart, RgbwColor colorEnd, float progressInc, int waitM
     progress = progress + progressInc;
   }
 }
+
 
 // Cycle through brightness-levels and colors
 void cycleColor(int brightness, int waitMillis) {
@@ -316,6 +312,7 @@ void cycleColor(int brightness, int waitMillis) {
   colorAll(RgbwColor(0, 0, 0, brightness)); // Full WHITE
   delay(waitMillis);
 }
+
 
 // Cycle through brightness-levels and colors
 void cycleAll(int brightnessStart, int brightnessEnd, int steps, int waitFade, int waitColor) {
@@ -346,6 +343,7 @@ void cycleAll(int brightnessStart, int brightnessEnd, int steps, int waitFade, i
   fade(colorStart, colorEnd, progressInc, waitFade);
 }
 
+
 // Set pixels one at a time
 void colorWipe(RgbwColor color, int wait) {
   Serial.println("colorWipe()");
@@ -357,6 +355,7 @@ void colorWipe(RgbwColor color, int wait) {
     delay(wait);                           //  Pause for a moment
   }
 }
+
 
 // Go through all 4 colors by setting pixels one at a time
 void colorWipeAll(int brightness, int wait) {
@@ -399,7 +398,7 @@ void setup() {
   Serial.flush();
 
   // Set LED output
-  pinMode(ledPin, OUTPUT);
+  pinMode(switchPin, OUTPUT);
 
 
 
@@ -443,7 +442,6 @@ void setup() {
     delay(5000);
   } 
 
-  //if you get here you have connected to the WiFi
   Serial.println("WiFi configured and connected");
 
 
@@ -461,14 +459,14 @@ void setup() {
 
   // Route to set GPIO to HIGH
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest * request) {
-    digitalWrite(ledPin, HIGH);
+    digitalWrite(switchPin, HIGH);
     Serial.println("Switch: ON");
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
   // Route to set GPIO to LOW
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest * request) {
-    digitalWrite(ledPin, LOW);
+    digitalWrite(switchPin, LOW);
     Serial.println("Switch: OFF");
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
@@ -552,7 +550,7 @@ void setup() {
 
 
 
-  // LED Stuff ////////////////////////////////////////////////////////////////////////////////
+  // LED stuff ////////////////////////////////////////////////////////////////////////////////
   Serial.println("Setting up LEDs...");
   // Reset all the pixels to the off state
   strip.Begin();
