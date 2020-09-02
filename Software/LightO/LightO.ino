@@ -74,8 +74,8 @@ const char* PARAM_INPUT_3 = "v";
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
-// Replaces placeholder with LED state value
-String processor(const String& var) {
+// Toggle GPIO
+String handleSwitch(const String& var) {
   Serial.println(var);
   if (var == "STATE") {
     if (digitalRead(switchPin)) {
@@ -88,7 +88,6 @@ String processor(const String& var) {
   }
   return String();
 }
-
 
 
 // LED functions ////////////////////////////////////////////////////////////////////////////////
@@ -430,6 +429,7 @@ void setup() {
   // Useful to make it all retry or go to sleep
   // In seconds
   wifiManager.setTimeout(180);
+  wifiManager.setClass("invert"); // Dark theme
   
   // Fetches ssid and pass and tries to connect
   // If it does not connect it starts an access point with the specified name "LightO"
@@ -449,7 +449,7 @@ void setup() {
   // Server ////////////////////////////////////////////////////////////////////////////////
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->send(SPIFFS, "/index.html", String(), false, handleSwitch);
   });
 
   // Route to load style.css file
@@ -461,18 +461,24 @@ void setup() {
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest * request) {
     digitalWrite(switchPin, HIGH);
     Serial.println("Switch: ON");
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->send(SPIFFS, "/index.html", String(), false, handleSwitch);
   });
 
   // Route to set GPIO to LOW
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest * request) {
     digitalWrite(switchPin, LOW);
     Serial.println("Switch: OFF");
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->send(SPIFFS, "/index.html", String(), false, handleSwitch);
   });
 
   server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/favicon.ico", "image/png");
+  });
+
+  server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request){
+    char state[12];
+    sprintf(state, "%d,%d,%d", hue, sat, val);
+    request->send(200, "text/plain", state);
   });
 
   server.on("/get", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -482,30 +488,27 @@ void setup() {
     String getHue;
     String getSat;
     String getVal;
-    String inputParam1;
-    String inputParam2;
-    String inputParam3;
-
+    
     // GET input1 value on <ESP_IP>/get?h=<inputMessage>
     if (request->hasParam(PARAM_INPUT_1)) {
       getHue = request->getParam(PARAM_INPUT_1)->value();
       hue = (int) getHue.toInt();
-      inputParam1 = PARAM_INPUT_1;
     }
 
     // GET input2 value on <ESP_IP>/get?s=<inputMessage>
     if (request->hasParam(PARAM_INPUT_2)) {
       getSat = request->getParam(PARAM_INPUT_2)->value();
       sat = (int) getSat.toInt();
-      inputParam2 = PARAM_INPUT_2;
     }
 
     // GET input3 value on <ESP_IP>/get?v=<inputMessage>
     if (request->hasParam(PARAM_INPUT_3)) {
       getVal = request->getParam(PARAM_INPUT_3)->value();
       val = (int) getVal.toInt();
-      inputParam3 = PARAM_INPUT_3;
     }
+    
+    // Set flag
+    colorUpdate = true;
     
     Serial.println("Got from webpage:");
     Serial.print("Hue = ");
@@ -517,9 +520,6 @@ void setup() {
     Serial.println();
     
     request->send(200);
-
-    // Set flag
-    colorUpdate = true;
 
     // Make semaphore available
     xSemaphoreGive(taskSemaphore);

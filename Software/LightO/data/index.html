@@ -111,26 +111,43 @@ colorPicker.on('color:change', function(color){
 	val = color.value
 	colorString = String(hue) + ',' + String(sat) + ',' + String(val)
 	console.log(colorString)
-	//window.location.pathname = '/color?hsv=' + String(color.hsv);
 	colorChange(hue, sat, val);
 });
 
 function colorChange(hue, sat, val) {
 	var xhttp = new XMLHttpRequest();
-	//xhttp.onreadystatechange = function() {
-	//	if (this.readyState == 4 && this.status == 200) {
-	//	  document.getElementById("demo").innerHTML = this.responseText;
-	//	}
-	//};
 	xhttp.open("GET", "get?h=" + hue + "&s=" + sat + "&v=" + val, true);
 	xhttp.send();
+}
+
+function colorState(){
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (this.readyState == 4 && this.status == 200) {
+			// The request has been completed successfully
+			var res = this.responseText;
+			console.log(res)
+			
+			var values = res.split(",");
+			
+			var hue = parseInt(values[0]);
+			var sat = parseInt(values[1]);
+			var val = parseInt(values[2]);
+			
+			console.log(hue)
+			
+			colorPicker.color.hsv = {h: hue, s: sat, v: val};
+		}
+    };
+	xhttp.open("GET", "/state", true);
+	xhttp.send()
 }
 </script>
 
 
 </head>
 
-<body >
+<body onload="colorState()">
     <h1><a href="https://pm1.narvii.com/6971/57895325fc3c26c281c738870748d1eb1267b128r1-547-753v2_uhq.jpg"> Lamp </a>
 	<!-- <div id="status" style = "display: none;">%STATE%</div> -->
 	</h1>
