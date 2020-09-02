@@ -1,0 +1,102 @@
+body {
+    font-family: arial, verdana, sans-serif;
+    font-size: 8px;
+    background: #1E1E20;
+    text-align: center;
+	height: 100vh;
+	width: 100%;
+}
+h1{
+    color: white;
+    font-size:30px;
+}
+input[type=checkbox]{
+	height: 0;
+	width: 0;
+	visibility: hidden;
+}
+
+label {
+	cursor: pointer;
+	text-indent: -9999px;
+	width: 100px;
+	height: 50px;
+	display: block;
+	background: #fff;
+	border-radius: 45px;
+	position: relative;
+}
+
+label:after {
+	content: '';
+	position: absolute;
+	top: 2.5px;
+	left: 2.5px;
+	width: 44px;
+	height: 44px;
+	background: #1E1E20;
+	border-radius: 44px;
+	transition: 0.3s;
+}
+
+input:checked + label {
+	background: #bada55;
+}
+
+input:checked + label:after {
+	left: calc(100% - 3px);
+	transform: translateX(-100%);
+}
+
+label:active:after {
+	width: 65px;
+}
+
+
+/* body {
+  color: #fff;
+  background: #171F30;
+  line-height: 150%;
+} */
+
+.Wrap {
+  min-height: 100vh;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 4em 0;
+}
+
+.Grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(250px,1fr));
+  grid-gap: 24px;
+}
+
+.ColorPicker {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  
+  h3 {
+    font-weight: normal;
+    font-size: 20px;
+  }
+}
+
+a {
+  color: #df99ff;
+}
+
+header {
+  
+  h1 {
+    font-weight: normal;
+  }
+  
+  p {
+    opacity: 0.8;  
+    font-size: 18px;
+  }
+}
+
