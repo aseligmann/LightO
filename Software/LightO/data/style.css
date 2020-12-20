@@ -84,6 +84,11 @@ label:active:after {
   }
 }
 
+#ChipChoices {
+  display: flex;
+  justify-content: center;
+}
+
 a {
   color: #df99ff;
 }

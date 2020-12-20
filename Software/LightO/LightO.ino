@@ -13,6 +13,8 @@ WiFiManager wifiManager;
 #include <NeoPixelBus.h> // LED control
 
 
+// Debugging //////////////////////////////////////////////////////////////////////////
+bool debug = false;
 
 
 // Multi-core definitions //////////////////////////////////////////////////////////////////////////
@@ -26,7 +28,7 @@ SemaphoreHandle_t taskSemaphore;
 #define NUM_LEDS 61
 #define DATA_PIN 32
 
-#define brightnessDefault 50
+#define brightnessDefault 255
 
 // four element pixels, RGBW
 NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod> strip(NUM_LEDS, DATA_PIN);
@@ -59,6 +61,16 @@ int b;
 int w;
 bool colorUpdate;
 
+//// Modes
+// Colorwheel
+// Candle
+int timeCandleWaitR = 0;
+int timeCandleWaitG = 0;
+int timeCandleR = 0;
+int timeCandleG = 0;
+// Cycle
+int timeCycleStep = 50;
+float hueFloat = 0;
 
 // Timing
 long t;
@@ -70,7 +82,13 @@ long t_prev;
 const char* PARAM_INPUT_1 = "h";
 const char* PARAM_INPUT_2 = "s";
 const char* PARAM_INPUT_3 = "v";
+const char* PARAM_MODE = "mode";
 
+int lampMode = 1;
+ // 1 = colorwheel
+ // 2 = candle
+ // 3 = cycle
+ 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -88,6 +106,9 @@ String handleSwitch(const String& var) {
   }
   return String();
 }
+
+int lastColorUpdate = 0;
+int intervalColorUpdate = 100; // ms
 
 
 // LED functions ////////////////////////////////////////////////////////////////////////////////
@@ -118,6 +139,26 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
   p = v * (1 - s);
   q = v * (1 - s * f);
   t = v * (1 - s * (1 - f));
+
+  if (debug) {
+    Serial.println("-------------- HSV_to_RGB --------------");
+    Serial.print("h = ");
+    Serial.print(h);
+    Serial.print(", i = ");
+    Serial.print(i);
+    Serial.print(", f = ");
+    Serial.println(f);
+    Serial.print("v = ");
+    Serial.print(v);
+    Serial.print(", p = ");
+    Serial.print(p);
+    Serial.print(", q = ");
+    Serial.print(q);
+    Serial.print(", t = ");
+    Serial.print(t);
+    Serial.println();
+  }
+  
   switch (i) {
     case 1:
       r = (int) round(255 * q);
@@ -143,11 +184,23 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
       r = (int) round(255 * v);
       g = (int) round(255 * p);
       b = (int) round(255 * q);
+      break;
     default: // case 0
       r = (int) round(255 * v);
       g = (int) round(255 * t);
       b = (int) round(255 * p);
       break;
+  }
+  
+  if (debug) {
+    Serial.println("-------------- HSV_to_RGB --------------");
+    Serial.print("R = ");
+    Serial.print(r);
+    Serial.print(", G = ");
+    Serial.print(g);
+    Serial.print(", B = ");
+    Serial.print(b);
+    Serial.println();
   }
 }
 
@@ -248,9 +301,21 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
 void handleColor(int hueIn, int satIn, int valIn) {
   // We interpret hue as color, saturation as luminance and value as brightness.
   // This is a bit unconventional, but makes for a better user experience
+  
+  if (debug) {
+    Serial.println("============== handleColor INPUT ==============");
+    Serial.print("Hue = ");
+    Serial.print(hueIn);
+    Serial.print(", Sat = ");
+    Serial.print(satIn);
+    Serial.print(", Val = ");
+    Serial.print(valIn);
+    Serial.println();
+  }
+  
   HSV_to_RGB(hueIn, satIn, valIn);
   //RGB_to_RGBW(r, g, b);
-
+  
   float lum = satIn / 100.0;
   float bright = valIn / 100.0;
   
@@ -258,6 +323,21 @@ void handleColor(int hueIn, int satIn, int valIn) {
   g = (int) (bright * lum * g);
   b = (int) (bright * lum * b);
   w = (int) 255 * (bright * (1.0 - lum));
+
+  if (debug) {
+    Serial.println("-------------- handleColor OUTPUT --------------");
+    Serial.print("R = ");
+    Serial.print(r);
+    Serial.print(", G = ");
+    Serial.print(g);
+    Serial.print(", B = ");
+    Serial.print(b);
+    Serial.print(", W = ");
+    Serial.print(w);
+    Serial.println();
+    Serial.println("===============================================");
+    Serial.println();
+  }
 }
 
 
@@ -471,13 +551,76 @@ void setup() {
     request->send(SPIFFS, "/index.html", String(), false, handleSwitch);
   });
 
+  // Change mode
+  server.on("/mode", HTTP_GET, [](AsyncWebServerRequest * request) {
+    
+    String getMode;
+    
+    // GET input1 value on <ESP_IP>/get?h=<inputMessage>
+    if (request->hasParam(PARAM_MODE)) {
+      getMode = request->getParam(PARAM_MODE)->value();
+      lampMode = (int) getMode.toInt();
+      hueFloat = hue;
+    }
+
+    if (debug) {
+      Serial.println("=============== WebServer /mode ===============");
+      Serial.print("Time = ");
+      Serial.println(millis());
+      Serial.println("Got new mode:");
+      Serial.print("Mode = ");
+      Serial.print(lampMode);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
+    
+    request->send(200);
+  });
+
   server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/favicon.ico", "image/png");
   });
 
-  server.on("/state", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/stateHSV", HTTP_GET, [](AsyncWebServerRequest *request){
     char state[12];
     sprintf(state, "%d,%d,%d", hue, sat, val);
+
+    if (debug) {
+      Serial.println("=============== WebServer /stateHSV ===============");
+      Serial.print("Time = ");
+      Serial.println(millis());
+      Serial.println("Got request for COLOR state. Sending:");
+      Serial.print("Hue = ");
+      Serial.print(hue);
+      Serial.print(", Sat = ");
+      Serial.print(sat);
+      Serial.print(", Val = ");
+      Serial.print(val);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
+    
+    request->send(200, "text/plain", state);
+  });
+
+  server.on("/stateMode", HTTP_GET, [](AsyncWebServerRequest *request){
+    char state[12];
+    sprintf(state, "%d", lampMode);
+
+    if (debug) {
+      Serial.println("=============== WebServer /stateMode ===============");
+      Serial.print("Time = ");
+      Serial.println(millis());
+      Serial.println("Got request for MODE state. Sending:");
+      Serial.print("Mode = ");
+      Serial.print(lampMode);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
+    
     request->send(200, "text/plain", state);
   });
 
@@ -510,14 +653,21 @@ void setup() {
     // Set flag
     colorUpdate = true;
     
-    Serial.println("Got from webpage:");
-    Serial.print("Hue = ");
-    Serial.print(hue);
-    Serial.print(", Sat = ");
-    Serial.print(sat);
-    Serial.print(", Val = ");
-    Serial.print(val);
-    Serial.println();
+    if (debug) {
+      Serial.println("=============== WebServer /get ===============");
+      Serial.print("Time = ");
+      Serial.println(millis());
+      Serial.println("Got new color:");
+      Serial.print("Hue = ");
+      Serial.print(hue);
+      Serial.print(", Sat = ");
+      Serial.print(sat);
+      Serial.print(", Val = ");
+      Serial.print(val);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
     
     request->send(200);
 
@@ -615,7 +765,6 @@ void taskCore1Handler(void *pvParameters) {
   }
 }
 
-
 void LEDHandler() {
 //  Serial.println("Cycling through colors");
 //  // brightness, wait
@@ -635,27 +784,164 @@ void LEDHandler() {
 //  colorAll(black);
 //  delay(3000);
 
-  if(colorUpdate){
-    // Convert colorspace
-    handleColor(hue, sat, val);
-    
-    Serial.print("Updating color to R = ");
-    Serial.print(r);
-    Serial.print(", G = ");
-    Serial.print(g);
-    Serial.print(", B = ");
-    Serial.print(b);
-    Serial.print(", W = ");
-    Serial.print(w);
-    Serial.println();
-    Serial.println();
+  switch (lampMode) {
+    case 1:
+      handleModeColorWheel();
+      break;
+    case 2:
+      handleModeCandle();
+      break;
+    case 3:
+      handleModeCycle();
+      break;
+  }
+}
 
+void handleModeColorWheel() {
+  if (colorUpdate) {
+    int timeNow = millis();
+    if (timeNow - lastColorUpdate > intervalColorUpdate) {
+      // Convert colorspace
+      handleColor(hue, sat, val);
+      
+      if (debug) {
+        Serial.println("================= ColorWheel =================");
+        Serial.print("Updating color to R = ");
+        Serial.print(r);
+        Serial.print(", G = ");
+        Serial.print(g);
+        Serial.print(", B = ");
+        Serial.print(b);
+        Serial.print(", W = ");
+        Serial.print(w);
+        Serial.println();
+        Serial.println("===============================================");
+        Serial.println();
+      }
+    
+      // Set color
+      RgbwColor color = RgbwColor(r, g, b, w);
+      colorAll(color);
+    
+      // Reset flag
+      colorUpdate = false;
+      
+      // Reset time
+      lastColorUpdate = timeNow;
+    }
+  }
+}
+
+void handleModeCandle() {
+  //https://github.com/grantwinney/52-Weeks-of-Pi/blob/master/07-Candle-Simulation-on-RGB-LED/CandleSimulation.py
+  float intensity = 1.0;
+  int timeNow = millis();
+
+  // Randomize red channel
+  if (timeNow - timeCandleR > timeCandleWaitR) {
+    //float candle_r = min(((int) (random(75, 100) * pow(intensity + 0.1, 0.75))), 100); // Value from 0 - 100
+    //r = (candle_r * 255) / 100;
+    int r_min = 130;
+    int r_max = 255;
+    int r_target = (r_min + r_max) / 2;
+    r = min(max(  (int) (r + random(-2, 2) + random(((r_target - r)/16) - 2, ((r_target - r)/16) + 2))  , r_min), r_max);
+    
+    timeCandleWaitR = random(30, 100); // Wait 80 to 300 millis
+    
+    timeCandleR = timeNow;
+    colorUpdate = true;
+  }
+  
+  // Randomize green channel
+  if (timeNow - timeCandleG > timeCandleWaitG) {
+    //float candle_g = random(33, 44) * pow(intensity, 2); // Value from 0 - 100
+    //g = (candle_g * 255) / 100;
+    int g_min = 15;
+    int g_max = 55;
+    int g_target = (g_min + g_max) / 2;
+    g = min(max(  (int) (g + random(-3, 3) + random(((g_target - g)/8) - 2, ((g_target - g)/8) + 2))  , g_min), g_max);
+    
+    timeCandleWaitG = random(30, 80); // Wait 80 to 300 millis
+    
+    timeCandleG = timeNow;
+    colorUpdate = true;
+  }
+
+  b = 0;
+  w = 0;
+
+
+  if (colorUpdate) {
+    if (debug) {
+      Serial.println("================= Candle =================");
+      Serial.print("Updating color to R = ");
+      Serial.print(r);
+      Serial.print(", G = ");
+      Serial.print(g);
+      Serial.print(", B = ");
+      Serial.print(b);
+      Serial.print(", W = ");
+      Serial.print(w);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
+    
     // Set color
     RgbwColor color = RgbwColor(r, g, b, w);
     colorAll(color);
-
+  
     // Reset flag
     colorUpdate = false;
+  }
+}
+
+void handleModeCycle() {
+  int timeNow = millis();
+
+  if (timeNow - timeCycleStep > lastColorUpdate) {
+    // Time to do one full cycle
+    int timeCycleFull = 60000; // 60 seconds in millis
+    // Stepsize
+    float stepSize = (360.0 / timeCycleFull) * timeCycleStep;
+  
+    // Increment hue
+    hueFloat = hueFloat + stepSize;
+    if (hueFloat >= 360) {
+      hueFloat = hueFloat - 360;
+    }
+    hue = floor(hueFloat);
+    
+    sat = 100;
+    val = 100;
+    
+    // Convert colorspace
+    handleColor(hue, sat, val);
+  
+    
+    if (debug) {
+      Serial.println("================= Cycle =================");
+      Serial.print("hueFloat = ");
+      Serial.println(hueFloat);
+      Serial.print("Updating color to R = ");
+      Serial.print(r);
+      Serial.print(", G = ");
+      Serial.print(g);
+      Serial.print(", B = ");
+      Serial.print(b);
+      Serial.print(", W = ");
+      Serial.print(w);
+      Serial.println();
+      Serial.println("===============================================");
+      Serial.println();
+    }
+      
+    // Set color
+    RgbwColor color = RgbwColor(r, g, b, w);
+    colorAll(color);
+      
+    // Reset time
+    lastColorUpdate = timeNow;
   }
 }
 
