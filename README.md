@@ -17,16 +17,15 @@ The light is powered by a single USB-C port.
 
 
 ### Images
- https://github.com/aseligmann/LightO/raw/master/Images/front_off.png
-(https://github.com/aseligmann/LightO/raw/master/Images/front_off.png "Front")
+![](https://github.com/aseligmann/LightO/raw/master/Images/front_off.png "Front")
 
-(https://github.com/aseligmann/LightO/raw/master/Images/front.png "Front")
+![](https://github.com/aseligmann/LightO/raw/master/Images/front.png "Front")
 
-(https://github.com/aseligmann/LightO/raw/master/Images/left.png "Left side")
+![](https://github.com/aseligmann/LightO/raw/master/Images/left.png "Left side")
 
-(https://github.com/aseligmann/LightO/raw/master/Images/back.png "Back")
+![](https://github.com/aseligmann/LightO/raw/master/Images/back.png "Back")
 
-(https://github.com/aseligmann/LightO/raw/master/Images/interface.png "Interface")
+![](https://github.com/aseligmann/LightO/raw/master/Images/interface.png "Interface")
 
 
 ### Features
