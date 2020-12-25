@@ -52,9 +52,9 @@ const int switchPin = 23;
 String ledState;
 
 // LED colors
-int hue;
-int sat;
-int val;
+int hue = 0;
+int sat = 100;
+int val = 100;
 int r;
 int g;
 int b;
@@ -84,10 +84,11 @@ const char* PARAM_INPUT_2 = "s";
 const char* PARAM_INPUT_3 = "v";
 const char* PARAM_MODE = "mode";
 
-int lampMode = 1;
- // 1 = colorwheel
- // 2 = candle
- // 3 = cycle
+int lampMode = 0;
+// 0 = setup
+// 1 = colorwheel
+// 2 = candle
+// 3 = cycle
  
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -341,12 +342,27 @@ void handleColor(int hueIn, int satIn, int valIn) {
 }
 
 
-// Set color of all pixels
-void colorAll(RgbwColor color) {
-  for (uint16_t i = 0; i < strip.PixelCount(); i++) {
+// Convenience function for setting hue, sat and val, and setting the colorUpdate flag
+void colorSet(int hueIn, int satIn, int valIn){
+  hue = hueIn;
+  sat = satIn;
+  val = valIn;
+  colorUpdate = true;
+}
+
+
+// Set color of select pixels
+void colorSelect(RgbwColor color, int pxStart, int pxEnd) {
+  for (uint16_t i = pxStart; i < pxEnd; i++) {
     strip.SetPixelColor(i, color);
   }
   strip.Show();
+}
+
+
+// Set color of all pixels
+void colorAll(RgbwColor color) {
+  colorSelect(color, 0, strip.PixelCount());
 }
 
 
@@ -479,6 +495,21 @@ void setup() {
   // Set LED output
   pinMode(switchPin, OUTPUT);
 
+  lampMode = 0;
+
+
+
+  // LED stuff ////////////////////////////////////////////////////////////////////////////////
+  Serial.println("Setting up LEDs...");
+  // Reset all the pixels to the off state
+  strip.Begin();
+  strip.Show();
+  RgbwColor colorWiFi = RgbwColor(0, 0, 255, 0);
+  RgbwColor colorServer = RgbwColor(0, 255, 255, 0);
+  RgbwColor colorDone = RgbwColor(0, 255, 0, 0);
+  RgbwColor colorFailure = RgbwColor(255, 0, 0, 0);
+  RgbwColor colorOff = RgbwColor(0, 0, 0, 0);
+
 
 
   // SPIFFS ////////////////////////////////////////////////////////////////////////////////
@@ -491,6 +522,12 @@ void setup() {
 
 
   // Wi-Fi ////////////////////////////////////////////////////////////////////////////////
+  // Wi-Fi feedback
+  Serial.println("Set leds blue for Wi-Fi stage...");
+  colorSelect(colorWiFi, 45, strip.PixelCount()); // Outermost ring
+  colorSelect(colorOff, 31, 45); // Next-outermost ring
+  int timeWiFi = millis(); // Track time
+  
 //  // Connect to Wi-Fi
 //  WiFi.begin(ssid, password);
 //  while (WiFi.status() != WL_CONNECTED) {
@@ -515,18 +552,29 @@ void setup() {
   // If it does not connect it starts an access point with the specified name "LightO"
   // Goes into a blocking loop awaiting configuration
   if(!wifiManager.autoConnect("LightO")) {
+    colorSelect(colorFailure, 31, 45); // Next-outermost ring
     Serial.println("Failed to connect and hit timeout");
     delay(3000);
-    //reset and try again, or maybe put it to deep sleep
+    // Reset and try again
     ESP.restart();
     delay(5000);
   } 
 
   Serial.println("WiFi configured and connected");
+  while(millis() - timeWiFi < 200) {
+    // Wait for 200 ms to have passed since showing WiFi feedback
+    // Purely to avoid flashing LEDs too quickly as the user won't notice
+  }
 
 
 
   // Server ////////////////////////////////////////////////////////////////////////////////
+  // Server feedback
+  Serial.println("Set leds teal for Server stage...");
+  colorSelect(colorServer, 45, strip.PixelCount()); // Outermost ring
+  colorSelect(colorOff, 31, 45); // Next-outermost ring
+  int timeServer = millis(); // Track time
+  
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, "/index.html", String(), false, handleSwitch);
@@ -686,6 +734,7 @@ void setup() {
   if (!MDNS.begin("LightO")) {
     Serial.println("Error setting up MDNS responder!");
     while (1) {
+      colorSelect(colorFailure, 31, 45); // Next-outermost ring
       delay(1000);
     }
   }
@@ -697,14 +746,12 @@ void setup() {
 
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
-
-
-
-  // LED stuff ////////////////////////////////////////////////////////////////////////////////
-  Serial.println("Setting up LEDs...");
-  // Reset all the pixels to the off state
-  strip.Begin();
-  strip.Show();
+  
+  Serial.println("WiFi configured and launched");
+  while(millis() - timeServer < 200) {
+    // Wait for 200 ms to have passed since showing WiFi feedback
+    // Purely to avoid flashing LEDs too quickly as the user won't notice
+  }
 
 
 
@@ -733,6 +780,21 @@ void setup() {
     &taskCore1,         /* Task handle to keep track of created task */
     1);                 /* pin task to core 0 */
 
+
+
+  // Boot feedback ////////////////////////////////////////////////////////////////////////////////
+  Serial.println("Flashing leds green to indicate boot succesful...");
+  colorSelect(colorDone, 45, strip.PixelCount()); // Outermost ring
+  colorSelect(colorOff, 31, 45); // Next-outermost ring
+  delay(200);
+  colorSelect(colorOff, 45, strip.PixelCount()); // Outermost ring
+  delay(200);
+  
+  lampMode = 1;
+  colorSet(0, 0, 100); // White
+
+  Serial.println("Done booting.");
+  
 }
 
 void taskCore0Handler(void *pvParameters) {
@@ -785,6 +847,9 @@ void LEDHandler() {
 //  delay(3000);
 
   switch (lampMode) {
+    case 0:
+      handleModeSetup();
+      break;
     case 1:
       handleModeColorWheel();
       break;
@@ -794,6 +859,41 @@ void LEDHandler() {
     case 3:
       handleModeCycle();
       break;
+  }
+}
+
+void handleModeSetup() {
+  if (colorUpdate) {
+    int timeNow = millis();
+    if (timeNow - lastColorUpdate > intervalColorUpdate) {
+      // Convert colorspace
+      handleColor(hue, sat, val);
+      
+      if (debug) {
+        Serial.println("================= Setup =================");
+        Serial.print("Updating color to R = ");
+        Serial.print(r);
+        Serial.print(", G = ");
+        Serial.print(g);
+        Serial.print(", B = ");
+        Serial.print(b);
+        Serial.print(", W = ");
+        Serial.print(w);
+        Serial.println();
+        Serial.println("===============================================");
+        Serial.println();
+      }
+    
+      // Set color
+      RgbwColor color = RgbwColor(r, g, b, w);
+      colorSelect(color, 45, strip.PixelCount());
+    
+      // Reset flag
+      colorUpdate = false;
+      
+      // Reset time
+      lastColorUpdate = timeNow;
+    }
   }
 }
 
