@@ -113,7 +113,6 @@ int intervalColorUpdate = 100; // ms
 
 
 // LED functions ////////////////////////////////////////////////////////////////////////////////
-
 // Convert from HSV to RGB
 void HSV_to_RGB(int hueIn, int satIn, int valIn) {
   int i;
@@ -204,98 +203,6 @@ void HSV_to_RGB(int hueIn, int satIn, int valIn) {
     Serial.println();
   }
 }
-
-
-// Convert from HSV to RGB
-//void HSV_to_RGBW(int hueIn, int satIn, int valIn) {
-//  HSV_to_RGB(hueIn, satIn, valIn);
-//
-//  double M = (double) max(r, max(g, b));
-//  double m = (double) min(r, min(g, b));
-//
-//  if((m / M) < 0.5){
-//    w = (int) ((m * M) / (M - m));
-//  } else {
-//    w = (int) M;
-//  }
-//  
-//  double K = (w + M) / M;
-//  r = (int) floor((K * r) - w);
-//  g = (int) floor((K * g) - w);
-//  b = (int) floor((K * b) - w);
-//}
-
-
-//void RGB_to_RGBW(int rIn, int gIn, int bIn){
-//  // Get the maximum between R, G, and B
-//  float tM = max(rIn, max(gIn, bIn));
-//  
-//  // If the maximum value is 0, immediately return pure black.
-//  if(tM == 0){ 
-//    r = 0;
-//    g = 0;
-//    b = 0;
-//    w = 0;
-//    return;
-//  }
-//  
-//  // This section serves to figure out what the color with 100% hue is
-//  float multiplier = 255.0 / tM;
-//  float hR = rIn * multiplier;
-//  float hG = gIn * multiplier;
-//  float hB = bIn * multiplier;  
-//  
-//  // This calculates the Whiteness (not strictly speaking Luminance) of the color
-//  float M = max(hR, max(hG, hB));
-//  float m = min(hR, min(hG, hB));
-//  float lum = ((M + m) - 255.0) / multiplier;
-//  
-//  // Calculate the output values
-//  r = (int) (rIn - lum);
-//  g = (int) (gIn - lum);
-//  b = (int) (bIn - lum);
-//  w = (int) lum;
-//  
-//  //Trim them so that they are all between 0 and 255
-//  if (r < 0){
-//    r = 0;
-//  }
-//  if (g < 0){
-//    g = 0;
-//  }
-//  if (b < 0){
-//    b = 0;
-//  }
-//  if (w < 0){
-//    w = 0;
-//  }
-//  if (r > 255){
-//    r = 255;
-//  }
-//  if (g > 255){
-//    g = 255;
-//  }
-//  if (b > 255){
-//    b = 255;
-//  }
-//  if (w > 255){
-//    w = 255;
-//  }
-//}
-
-
-//void HSV_to_RGBW(int hueIn, int satIn, int valIn){
-//  HSV_to_RGB(hueIn, satIn, valIn);
-//  //RGB_to_RGBW(r, g, b);
-//
-//  float lum = satIn / 100.0;
-//  float bright = valIn / 100.0;
-//  
-//  r = (int) (bright * lum * r);
-//  g = (int) (bright * lum * g);
-//  b = (int) (bright * lum * b);
-//  w = (int) (bright * (1.0 - lum));
-//}
 
 
 // Handle input color
@@ -528,15 +435,15 @@ void setup() {
   colorSelect(colorOff, 31, 45); // Next-outermost ring
   int timeWiFi = millis(); // Track time
   
-//  // Connect to Wi-Fi
-//  WiFi.begin(ssid, password);
-//  while (WiFi.status() != WL_CONNECTED) {
-//    delay(1000);
-//    Serial.println("Connecting to WiFi..");
-//  }
-//
-//  // Print IP address of web server on serial interface
-//  Serial.println(WiFi.localIP());
+  // Connect to Wi-Fi
+  //WiFi.begin(ssid, password);
+  //while (WiFi.status() != WL_CONNECTED) {
+  //  delay(1000);
+  //  Serial.println("Connecting to WiFi..");
+  //}
+
+  // Print IP address of web server on serial interface
+  //Serial.println(WiFi.localIP());
   
   // WiFiManager
   // reset settings - for testing
@@ -828,24 +735,6 @@ void taskCore1Handler(void *pvParameters) {
 }
 
 void LEDHandler() {
-//  Serial.println("Cycling through colors");
-//  // brightness, wait
-//  cycleColor(50, 1000);
-//  colorAll(black);
-//  delay(3000);
-//
-//  Serial.println("Cycling through colors and fading brightness");
-//  // brightnessStart, brightnessEnd, steps, waitFade, waitColor
-//  cycleAll(0, 255, 100, 25, 0);
-//  colorAll(black);
-//  delay(3000);
-//
-//  Serial.println("Wiping all colors");
-//  // brightness, wait
-//  colorWipeAll(50, 25);
-//  colorAll(black);
-//  delay(3000);
-
   switch (lampMode) {
     case 0:
       handleModeSetup();
@@ -933,7 +822,8 @@ void handleModeColorWheel() {
 }
 
 void handleModeCandle() {
-  //https://github.com/grantwinney/52-Weeks-of-Pi/blob/master/07-Candle-Simulation-on-RGB-LED/CandleSimulation.py
+  // Inspired by
+  // https://github.com/grantwinney/52-Weeks-of-Pi/blob/master/07-Candle-Simulation-on-RGB-LED/CandleSimulation.py
   float intensity = 1.0;
   int timeNow = millis();
 
@@ -967,6 +857,8 @@ void handleModeCandle() {
     colorUpdate = true;
   }
 
+
+  // Set value of unused color channels
   b = 0;
   w = 0;
 
